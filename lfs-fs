@@ -9,6 +9,9 @@
 # TODO: get pacman-static installed on lfs-fs
 # TODO: find a project that builds a minimal kernel config with no modules
 
+# TODO: when we install sudo, mention that the official sudo logo is a fucking sandwich
+# https://www.sudo.ws
+
 # your patchelf-frankenstein work may prove useful,
 # now that we know the nix founder wrote patchelf!
 
@@ -17,9 +20,17 @@ export PREFIX="$PWD/prefix"
 # Get a C library
 git clone https://git.musl-libc.org/git/musl
 pushd musl
-./configure --prefix="$PREFIX"
+./configure --prefix="$PREFIX" --disable-shared
 make -j
 make install
+popd
+
+# Get the kernel headers for musl libc
+# The github url below is where Arch gets them from
+# https://archlinux.org/packages/extra/x86_64/kernel-headers-musl
+git clone https://github.com/sabotage-linux/kernel-headers
+pushd kernel-headers
+make ARCH=x86_64 prefix="/" DESTDIR="$PREFIX" install
 popd
 
 export PATH="$PREFIX/bin:$PATH"
@@ -28,6 +39,21 @@ export PATH="$PREFIX/bin:$PATH"
 git clone https://github.com/landley/toybox
 pushd toybox
 make defconfig
-make
+sed -i 's/# CONFIG_SH is not set/CONFIG_SH=y/' .config
+CC=musl-gcc LDFLAGS=-static make
 make install
 popd
+
+# Install init
+cp -v init "$PREFIX/"
+
+# Install kernel
+# TODO: build the kernel here from a minimal config
+sudo install -D /boot/vmlinuz2 prefix/boot/vmlinuz2
+
+# Mount as install
+partition="/dev/nvme1n1p7"
+mountpoint="/mnt"
+sudo mount "$partition" "$mountpoint"
+sudo rsync -av --delete prefix/ "$mountpoint/"
+sudo chroot "$mountpoint" /bin/sh
