@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Linux From Scratch - From Scratch
+
+# TODO: get the musl kernel headers from arch
+# TODO: make the toybox init script smaller
+# TODO: get internet access working
+# TODO: automate the trick of stealing bash and its deps via recursive ldd
+# TODO: get pacman-static installed on lfs-fs
+# TODO: find a project that builds a minimal kernel config with no modules
+
+# your patchelf-frankenstein work may prove useful,
+# now that we know the nix founder wrote patchelf!
+
+export PREFIX="$PWD/prefix"
+
+# Get a C library
+git clone https://git.musl-libc.org/git/musl
+pushd musl
+./configure --prefix="$PREFIX"
+make -j
+make install
+popd
+
+export PATH="$PREFIX/bin:$PATH"
+
+# Get some coreutils
+git clone https://github.com/landley/toybox
+pushd toybox
+make defconfig
+make
+make install
+popd
