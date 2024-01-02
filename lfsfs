@@ -46,7 +46,7 @@ mkdir -pv "$dst"/{boot,etc,{usr/,}lib{,64},dev{,/pts,/shm},proc,sys}
 chmod -v +t "$dst"/dev/shm
 
 # init
-cp -v init "$dst/"
+cp -v init "$dst/sbin"
 
 # etc/profile
 cp -v etc/profile "$dst"/etc/profile
