@@ -58,6 +58,16 @@ done
 # TODO: build the kernel here from a minimal config
 sudo install -D /boot/vmlinuz2 prefix/boot/vmlinuz2
 
+# resolv.conf
+echo "nameserver 8.8.8.8" > prefix/etc/resolv.conf
+
+# passwd
+cat > prefix/etc/passwd << 'EOF' &&
+root:x:0:0:root:/root:/bin/sh
+guest:x:500:500:guest:/home/guest:/bin/sh
+nobody:x:65534:65534:nobody:/proc/self:/dev/null
+EOF
+
 # Mount as install
 partition="/dev/nvme1n1p7"
 mountpoint="/mnt"
