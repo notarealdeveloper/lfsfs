@@ -72,6 +72,14 @@ rm -v "$dst"/bin/bash
     install -Dv "$path" "$dst$path"
 done
 
+./ldds $(which iw) | while read path; do
+    install -Dv "$path" "$dst$path"
+done
+
+./ldds $(which iwctl) | while read path; do
+    install -Dv "$path" "$dst$path"
+done
+
 # kernel
 install -Dv /boot/vmlinuz2 "$dst"/boot/vmlinuz2
 
