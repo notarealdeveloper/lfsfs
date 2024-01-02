@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+
+import os
+import re
+import sys
+from collections import deque
+
+def ldd(path):
+    return set(os.popen(f"ldd {path!r} | awk '/=>/{{print $3}}'").read().splitlines())
+
+def ld_so(path):
+    return {os.popen(f"ldd {path!r} | grep -Eo '/lib.*?/ld-[^ ]*'").read().strip()}
+
+def re_ldd(path):
+    libs = {path}
+    for lib in ldd(path):
+        if lib in libs:
+            continue
+        libs |= re_ldd(lib)
+    return libs
+
+if __name__ == '__main__':
+    path = sys.argv[1] 
+    libs = re_ldd(path)
+    libs |= ld_so(path)
+    libs = sorted(libs)
+    for lib in libs:
+        print(lib)

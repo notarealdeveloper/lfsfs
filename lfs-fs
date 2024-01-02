@@ -47,7 +47,14 @@ popd
 # Install init
 cp -v init "$PREFIX/"
 
-# Install kernel
+# Remove the bash symlink that comes with toybox sh
+rm prefix/bin/bash
+
+./ldds /bin/bash | while read path; do
+    sudo install -Dv "$path" "prefix$path"
+done
+
+# kernel
 # TODO: build the kernel here from a minimal config
 sudo install -D /boot/vmlinuz2 prefix/boot/vmlinuz2
 
