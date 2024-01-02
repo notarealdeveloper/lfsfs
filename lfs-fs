@@ -47,6 +47,9 @@ popd
 # Install init
 cp -v init "$PREFIX/"
 
+# Install pacman-static
+cp -v pacman "$PREFIX/bin"
+
 # Remove the bash symlink that comes with toybox sh
 rm prefix/bin/bash
 
