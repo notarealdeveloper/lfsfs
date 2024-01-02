@@ -15,12 +15,12 @@ partition="/dev/nvme1n1p7"
 mountpoint="/mnt"
 sudo mount "$partition" "$mountpoint"
 
-export PREFIX="$mountpoint"
+export dst="$PWD/prefix"
 
 # Get a C library
 git clone https://git.musl-libc.org/git/musl
 pushd musl
-./configure --prefix="$PREFIX" --disable-shared
+./configure --prefix="$dst" --disable-shared
 make -j
 make install
 popd
@@ -29,10 +29,10 @@ popd
 # https://archlinux.org/packages/extra/x86_64/kernel-headers-musl
 git clone https://github.com/sabotage-linux/kernel-headers
 pushd kernel-headers
-make ARCH=x86_64 prefix="/" DESTDIR="$PREFIX" install
+make ARCH=x86_64 prefix="/" DESTDIR="$dst" install
 popd
 
-export PATH="$PREFIX/bin:$PATH"
+export PATH="$dst/bin:$PATH"
 
 # get some coreutils
 git clone https://github.com/landley/toybox
@@ -41,39 +41,40 @@ make defconfig
 sed -i 's/# CONFIG_SH is not set/CONFIG_SH=y/' .config
 CC=musl-gcc LDFLAGS=-static make
 make install
+rsync -av install/ "$dst"/
 popd
 
 # make a filesystem
-mkdir -pv "$mountpoint"/{etc,{usr/,}lib{,64},dev{,/pts,/shm},proc,sys}
-chmod +t "$mountpoint"/dev/shm
+mkdir -pv "$dst"/{boot,etc,{usr/,}lib{,64},dev{,/pts,/shm},proc,sys}
+chmod -v +t "$dst"/dev/shm
 
 # init
-cp -v init "$mountpoint/"
+cp -v init "$dst/"
 
 # etc/profile
-cp -v etc/profile "$mountpoint"/etc/profile
+cp -v etc/profile "$dst"/etc/profile
 
 # etc/resolv.conf
-echo "nameserver 8.8.8.8" > $mountpoint/etc/resolv.conf
+echo "nameserver 8.8.8.8" > "$dst"/etc/resolv.conf
 
 # etc/passwd
-cat > $mountpoint/etc/passwd << 'EOF'
+cat > $dst/etc/passwd << 'EOF'
 root:x:0:0:root:/root:/bin/sh
 guest:x:500:500:guest:/home/guest:/bin/sh
 nobody:x:65534:65534:nobody:/proc/self:/dev/null
 EOF
 
 # install pacman-static
-cp -v pacman "$mountpoint/bin"
+cp -v pacman "$dst/bin"
 
 # remove the bash symlink that comes with toybox sh
-rm -v "$mountpoint"/bin/bash
+rm -v "$dst"/bin/bash
 
 # install host bash and everything it links against
 ./ldds /bin/bash | while read path; do
-    install -Dv "$path" "$mountpoint$path"
+    install -Dv "$path" "$dst$path"
 done
 
 # kernel
-install -Dv /boot/vmlinuz2 $mountpoint/boot/vmlinuz2
+install -Dv /boot/vmlinuz2 "$dst"/boot/vmlinuz2
 
