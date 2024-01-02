@@ -1,9 +1,11 @@
 #!/bin/bash
 
 mount -t devtmpfs dev       dev
-mount -t devpts   dev/pts   dev/pts
 mount -t proc     proc      proc
 mount -t sysfs    sys       sys
+
+mkdir -pv dev/pts
+mount -t devpts   dev/pts   dev/pts
 
 ln -svf proc/self/fd    dev/fd
 ln -svf proc/self/fd/0  dev/stdin
