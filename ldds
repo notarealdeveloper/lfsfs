@@ -3,13 +3,14 @@
 import os
 import re
 import sys
-from collections import deque
 
 def ldd(path):
     return set(os.popen(f"ldd {path!r} | awk '/=>/{{print $3}}'").read().splitlines())
 
 def ld_so(path):
-    return {os.popen(f"ldd {path!r} | grep -Eo '/lib.*?/ld-[^ ]*'").read().strip()}
+    return {os.popen(
+        f"ldd {path!r} | grep -Eo '/[^ ]*?lib[^ ]*?/ld-[^ ]*'"
+    ).read().strip()}
 
 def re_ldd(path):
     libs = {path}
