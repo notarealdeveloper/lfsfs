@@ -14,6 +14,18 @@
 set -e
 
 export dst="$PWD/prefix"
+mkdir -pv "$dst"/{boot,etc,dev/{pts,shm},proc,sys,usr/{bin,lib}}
+pushd prefix
+ln -sv usr/bin bin
+ln -sv usr/bin sbin
+ln -sv usr/lib lib
+ln -sv usr/lib lib64
+chmod -v +t dev/shm
+pushd usr
+ln -sv lib lib64
+ln -sv bin sbin
+popd
+popd
 
 # Get a C library
 git clone https://git.musl-libc.org/git/musl
@@ -41,10 +53,6 @@ CC=musl-gcc LDFLAGS=-static make
 make install
 rsync -av install/ "$dst"/
 popd
-
-# make a filesystem
-mkdir -pv "$dst"/{boot,etc,{usr/,}lib{,64},dev{,/pts,/shm},proc,sys}
-chmod -v +t "$dst"/dev/shm
 
 # init
 cp -v init "$dst/sbin"
