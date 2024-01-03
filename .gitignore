@@ -1,4 +1,5 @@
-prefix/
+root/
 musl/
 kernel-headers/
 toybox/
+tinycc/

@@ -13,24 +13,35 @@
 
 set -e
 
-export dst="$PWD/prefix"
-mkdir -pv "$dst"/{boot,etc,dev/{pts,shm},proc,sys,usr/{bin,lib}}
-pushd prefix
-ln -sv usr/bin bin
-ln -sv usr/bin sbin
-ln -sv usr/lib lib
-ln -sv usr/lib lib64
-chmod -v +t dev/shm
-pushd usr
-ln -sv lib lib64
-ln -sv bin sbin
-popd
-popd
+mkbins() {
+    [ -z "$1" ] && echo "usage: $FUNCNAME <prefix>" && return 1
+    local dst="$1"
+    pushd "$dst"
+    mkdir -pv usr/{bin,lib}
+    ln -sv usr/bin bin
+    ln -sv usr/bin sbin
+    ln -sv usr/lib lib
+    ln -sv usr/lib lib64
+    pushd usr
+    ln -sv lib lib64
+    ln -sv bin sbin
+    popd
+    popd
+}
+
+export prefix="/lfsfs"
+export root="$PWD/root"
+mkdir -pv "$root$prefix"
+sudo ln -sv "$root$prefix" "$prefix"
+mkdir -pv "$root"/{boot,etc,dev/{pts,shm},proc,sys}
+chmod -v +t "$root"/dev/shm
+mkbins "$root"
+mkbins "$prefix"
 
 # Get a C library
 git clone https://git.musl-libc.org/git/musl
 pushd musl
-./configure --prefix="$dst" --disable-shared
+./configure --prefix="$prefix" --disable-shared
 make -j
 make install
 popd
@@ -39,26 +50,26 @@ popd
 # https://archlinux.org/packages/extra/x86_64/kernel-headers-musl
 git clone https://github.com/sabotage-linux/kernel-headers
 pushd kernel-headers
-make ARCH=x86_64 prefix="/" DESTDIR="$dst" install
+make ARCH=x86_64 prefix="$prefix" install
 popd
 
-export PATH="$dst/bin:$PATH"
+export PATH="$prefix/bin:$PATH"
 
 # get some coreutils
 git clone https://github.com/landley/toybox
 pushd toybox
 make defconfig
 sed -i 's/# CONFIG_SH is not set/CONFIG_SH=y/' .config
-CC=musl-gcc LDFLAGS=-static make
-make install
-rsync -av install/ "$dst"/
+CC=musl-gcc make
+make install_flat
+rsync -av install/ "$prefix/bin/"
 popd
 
 # init
-cp -v init "$dst/sbin"
+cp -v init "$root/sbin"
 
 # etc/profile
-cat > "$dst"/etc/profile << 'EOF'
+cat > "$root"/etc/profile << 'EOF'
 # colors
 end="\[\e[00m\]"
 red="\[\e[1;31m\]"
@@ -72,45 +83,56 @@ export PS1="${user}@${host} ${path} "
 unset user host path
 
 export HOME=/home
-export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/lfsfs/bin
 EOF
 
 # etc/resolv.conf
-echo "nameserver 8.8.8.8" > "$dst"/etc/resolv.conf
+echo "nameserver 8.8.8.8" > "$root"/etc/resolv.conf
 
 # etc/passwd
-cat > $dst/etc/passwd << 'EOF'
+cat > $root/etc/passwd << 'EOF'
 root:x:0:0:root:/root:/bin/sh
 guest:x:500:500:guest:/home/guest:/bin/sh
 nobody:x:65534:65534:nobody:/proc/self:/dev/null
 EOF
 
 # install pacman-static
-cp -v pacman "$dst/bin"
+cp -v pacman "$root/bin"
 
 # remove the bash symlink that comes with toybox sh
-rm -v "$dst"/bin/bash
+rm -v "$root"/bin/bash
 
 # install host bash and everything it links against
 ./ldds /bin/bash | while read path; do
-    install -Dv "$path" "$dst$path"
+    install -Dv "$path" "$root$path"
 done
 
-./ldds $(which iw) | while read path; do
-    install -Dv "$path" "$dst$path"
-done
+if false; then
+    ./ldds $(which iw) | while read path; do
+        install -Dv "$path" "$root$path"
+    done
 
-./ldds $(which iwctl) | while read path; do
-    install -Dv "$path" "$dst$path"
-done
+    ./ldds $(which iwctl) | while read path; do
+        install -Dv "$path" "$root$path"
+    done
+fi
 
 # kernel
-install -Dv /boot/vmlinuz2 "$dst"/boot/vmlinuz2
+install -Dv /boot/vmlinuz2 "$root"/boot/vmlinuz2
 
 # install to the mountpoint
-partition="/dev/nvme1n1p7"
+partition="/dev/disk/by-label/Lfsfs"
 mountpoint="/mnt"
 sudo mount "$partition" "$mountpoint"
-sudo rsync -av --delete "$dst"/ "$mountpoint"/
+sudo rsync -av --delete "$root"/ "$mountpoint"/
 sudo chown -Rv root:root "$mountpoint"/
 
+
+git clone git://repo.or.cz/tinycc
+pushd tinycc
+./configure --prefix="$prefix" --config-musl --extra-ldflags=-static
+make -j $(nproc)
+make install
+popd
+
+sudo chroot "$mountpoint" /bin/bash
