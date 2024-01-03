@@ -11,6 +11,7 @@
 # your patchelf-frankenstein work may prove useful,
 # now that we know the nix founder wrote patchelf!
 
+set -e
 
 export dst="$PWD/prefix"
 
