@@ -32,6 +32,7 @@ mkbins() {
 export prefix="/lfsfs"
 export root="$PWD/root"
 mkdir -pv "$root$prefix"
+sudo rm -fv "$prefix"
 sudo ln -sv "$root$prefix" "$prefix"
 mkdir -pv "$root"/{boot,etc,dev/{pts,shm},proc,sys}
 chmod -v +t "$root"/dev/shm
@@ -39,7 +40,9 @@ mkbins "$root"
 mkbins "$prefix"
 
 # Get a C library
-git clone https://git.musl-libc.org/git/musl
+if [ ! -d musl ]; then
+    git clone https://git.musl-libc.org/git/musl
+fi
 pushd musl
 ./configure --prefix="$prefix" --disable-shared
 make -j
@@ -48,7 +51,9 @@ popd
 
 # get the kernel headers for musl libc
 # https://archlinux.org/packages/extra/x86_64/kernel-headers-musl
-git clone https://github.com/sabotage-linux/kernel-headers
+if [ ! -d kernel-headers ]; then
+    git clone https://github.com/sabotage-linux/kernel-headers
+fi
 pushd kernel-headers
 make ARCH=x86_64 prefix="$prefix" install
 popd
@@ -56,7 +61,9 @@ popd
 export PATH="$prefix/bin:$PATH"
 
 # get some coreutils
-git clone https://github.com/landley/toybox
+if [ ! -d toybox ]; then
+    git clone https://github.com/landley/toybox
+fi
 pushd toybox
 make defconfig
 sed -i 's/# CONFIG_SH is not set/CONFIG_SH=y/' .config
@@ -100,22 +107,12 @@ EOF
 cp -v pacman "$root/bin"
 
 # remove the bash symlink that comes with toybox sh
-rm -v "$root"/bin/bash
+rm -v "$prefix/bin/bash"
 
 # install host bash and everything it links against
 ./ldds /bin/bash | while read path; do
     install -Dv "$path" "$root$path"
 done
-
-if false; then
-    ./ldds $(which iw) | while read path; do
-        install -Dv "$path" "$root$path"
-    done
-
-    ./ldds $(which iwctl) | while read path; do
-        install -Dv "$path" "$root$path"
-    done
-fi
 
 # kernel
 install -Dv /boot/vmlinuz2 "$root"/boot/vmlinuz2
@@ -127,12 +124,13 @@ sudo mount "$partition" "$mountpoint"
 sudo rsync -av --delete "$root"/ "$mountpoint"/
 sudo chown -Rv root:root "$mountpoint"/
 
-
-git clone git://repo.or.cz/tinycc
-pushd tinycc
-./configure --prefix="$prefix" --config-musl --extra-ldflags=-static
-make -j $(nproc)
-make install
-popd
+if false; then
+    git clone git://repo.or.cz/tinycc
+    pushd tinycc
+    ./configure --prefix="$prefix" --config-musl --extra-ldflags=-static
+    make -j $(nproc)
+    make install
+    popd
+fi
 
 sudo chroot "$mountpoint" /bin/bash
