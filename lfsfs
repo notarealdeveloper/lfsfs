@@ -29,15 +29,15 @@ mkbins() {
     popd
 }
 
-export prefix="/lfsfs"
+#export prefix="/lfsfs"
 export root="$PWD/root"
-mkdir -pv "$root$prefix"
-sudo rm -fv "$prefix"
-sudo ln -sv "$root$prefix" "$prefix"
+#mkdir -pv "$root$prefix"
+#sudo rm -fv "$prefix"
+#sudo ln -sv "$root$prefix" "$prefix"
 mkdir -pv "$root"/{boot,etc,dev/{pts,shm},proc,sys}
 chmod -v +t "$root"/dev/shm
 mkbins "$root"
-mkbins "$prefix"
+#mkbins "$prefix"
 
 # Get a C library
 if [ ! -d musl ]; then
