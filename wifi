@@ -1,0 +1,20 @@
+# wifi
+
+# Notes on getting wifi working without having to dig in to
+# the nightmarish hellscape of the wpa_supplicant source
+# code, or networkmanager, or any of those, because they're
+# all way too goddamn complicated. Hence...
+
+# iwd
+https://iwd.wiki.kernel.org
+
+## start here
+https://iwd.wiki.kernel.org/gettingstarted
+
+```
+git clone git://git.kernel.org/pub/scm/libs/ell/ell
+git clone git://git.kernel.org/pub/scm/network/wireless/iwd
+pushd iwd
+./bootstrap
+./configure --prefix=/lfsfs --localstatedir=/var --sysconfdir=/etc --disable-systemd-service
+```
