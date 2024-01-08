@@ -116,6 +116,7 @@ cp -v pacman "$root/bin"
 
 # install a hello world program to make sure we can compile it in the chroot
 cp -v main.c "$root/"
+mkdir $root/usr/include
 cp -rv $root/include/* $root/usr/include/   # hack
 
 # remove the bash symlink that comes with toybox sh
@@ -147,7 +148,7 @@ sudo mount "$partition" "$mountpoint"
 sudo rsync -av --delete "$root"/ "$mountpoint"/
 sudo chown -Rv root:root "$mountpoint"/
 
-sudo mount -t proc /proc "$mountpoint/proc"
-sudo mount --bind /sys "$mountpoint/sys"
-sudo mount --bind /dev "$mountpoint/dev"
+#sudo mount -t proc /proc "$mountpoint/proc"
+#sudo mount --bind /sys "$mountpoint/sys"
+#sudo mount --bind /dev "$mountpoint/dev"
 sudo chroot "$mountpoint" /bin/bash
