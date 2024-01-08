@@ -44,9 +44,12 @@ if [ ! -d musl ]; then
     git clone https://git.musl-libc.org/git/musl
 fi
 pushd musl
-./configure --prefix="$prefix" --disable-shared
+#./configure --prefix="$prefix" --disable-shared
+#make -j
+#make install
+./configure --prefix="/" --disable-shared
 make -j
-make install
+make DESTDIR="$root" install
 popd
 
 # get the kernel headers for musl libc
@@ -55,21 +58,26 @@ if [ ! -d kernel-headers ]; then
     git clone https://github.com/sabotage-linux/kernel-headers
 fi
 pushd kernel-headers
-make ARCH=x86_64 prefix="$prefix" install
+#make ARCH=x86_64 prefix="$prefix" install
+make ARCH=x86_64 prefix="/" DESTDIR="$root" install
 popd
 
-export PATH="$prefix/bin:$PATH"
+# export PATH="$prefix/bin:$PATH"
+export PATH="$root/bin:$PATH"
 
 # get some coreutils
 if [ ! -d toybox ]; then
     git clone https://github.com/landley/toybox
 fi
 pushd toybox
-make defconfig
+#make defconfig
+#CC=musl-gcc make
+CC=musl-clang LDFLAGS=-static make defconfig
 sed -i 's/# CONFIG_SH is not set/CONFIG_SH=y/' .config
-CC=musl-gcc make
+CC=musl-clang LDFLAGS=-static make
 make install_flat
-rsync -av install/ "$prefix/bin/"
+#rsync -av install/ "$prefix/bin/"
+rsync -av install/ "$root/bin/"
 popd
 
 # init
@@ -106,8 +114,13 @@ EOF
 # install pacman-static
 cp -v pacman "$root/bin"
 
+# install a hello world program to make sure we can compile it in the chroot
+cp -v main.c "$root/"
+cp -rv $root/include/* $root/usr/include/   # hack
+
 # remove the bash symlink that comes with toybox sh
-rm -v "$prefix/bin/bash"
+# rm -v "$prefix/bin/bash"
+rm -v "$root/bin/bash"
 
 # install host bash and everything it links against
 ./ldds /bin/bash | while read path; do
@@ -117,20 +130,24 @@ done
 # kernel
 install -Dv /boot/vmlinuz2 "$root"/boot/vmlinuz2
 
+# tcc
+git clone git://repo.or.cz/tinycc
+pushd tinycc
+./configure --prefix="/usr" --config-musl --extra-ldflags=-static
+make -j $(nproc)
+make DESTDIR="install" install
+rsync -av install/ "$root/"
+cp -v /lib/ld-musl-x86_64.so.1 "$root/lib/" # cheating a bit
+popd
+
 # install to the mountpoint
-partition="/dev/disk/by-label/Lfsfs"
+partition="$(readlink -f /dev/disk/by-label/Lfsfs)"
 mountpoint="/mnt"
 sudo mount "$partition" "$mountpoint"
 sudo rsync -av --delete "$root"/ "$mountpoint"/
 sudo chown -Rv root:root "$mountpoint"/
 
-if false; then
-    git clone git://repo.or.cz/tinycc
-    pushd tinycc
-    ./configure --prefix="$prefix" --config-musl --extra-ldflags=-static
-    make -j $(nproc)
-    make install
-    popd
-fi
-
+sudo mount -t proc /proc "$mountpoint/proc"
+sudo mount --bind /sys "$mountpoint/sys"
+sudo mount --bind /dev "$mountpoint/dev"
 sudo chroot "$mountpoint" /bin/bash
